@@ -1,0 +1,195 @@
+---
+- name: Multi-OS Dev Environment Setup
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars_prompt:
+    - name: install_python
+      prompt: "Install Python? (y/n)"
+      private: no
+      default: "n"
+    - name: install_vscode
+      prompt: "Install Visual Studio Code? (y/n)"
+      private: no
+      default: "n"
+    - name: install_docker
+      prompt: "Install Docker? (y/n)"
+      private: no
+      default: "n"
+    - name: install_dotnet
+      prompt: "Install .NET SDK 9.0? (y/n)"
+      private: no
+      default: "n"
+
+  tasks:
+    - block:
+        - name: Install always-on tools (git, github cli) (macOS/Linux)
+          ansible.builtin.package:
+            name: [git, gh, curl, wget]
+            state: present
+
+        - name: Install Azure CLI (Ubuntu)
+          ansible.builtin.shell: |
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          args:
+            creates: "/usr/bin/az"
+          when: ansible_facts['os_family'] == 'Debian'
+
+        - name: Add Microsoft GPG key for PowerShell (Ubuntu)
+          ansible.builtin.apt_key:
+            url: https://packages.microsoft.com/keys/microsoft.asc
+            state: present
+          when: ansible_facts['os_family'] == 'Debian'
+
+        - name: Add Microsoft package repository for PowerShell (Ubuntu)
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] https://packages.microsoft.com/ubuntu/{{ ansible_facts['distribution_release'] }}/prod {{ ansible_facts['distribution_release'] }} main"
+            state: present
+            filename: 'microsoft-prod'
+          when: ansible_facts['os_family'] == 'Debian'
+
+        - name: Install PowerShell (Ubuntu)
+          ansible.builtin.apt:
+            name: powershell
+            state: present
+          when: ansible_facts['os_family'] == 'Debian'
+
+        - name: Install Azure CLI (macOS)
+          ansible.builtin.homebrew:
+            name: azure-cli
+            state: present
+          when: ansible_facts['os_family'] == 'Darwin'
+
+        - name: Install NVM (macOS/Linux)
+          ansible.builtin.shell: |
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+          args:
+            creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+
+        - name: Ensure NVM is initialized in .bashrc and .zshrc (macOS/Linux)
+          ansible.builtin.blockinfile:
+            path: "{{ item }}"
+            create: yes
+            marker: "# {mark} ANSIBLE MANAGED BLOCK: NVM initialization"
+            block: |
+              export NVM_DIR="$HOME/.nvm"
+              [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          loop:
+            - "{{ ansible_env.HOME }}/.bashrc"
+            - "{{ ansible_env.HOME }}/.zshrc"
+
+        - name: Install Node.js LTS via NVM (macOS/Linux)
+          ansible.builtin.shell: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            bash -c 'source "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default node'
+          args:
+            executable: /bin/bash
+            creates: "$HOME/.nvm/versions/node"
+
+        - name: Add Microsoft GPG key (Ubuntu)
+          ansible.builtin.apt_key:
+            url: https://packages.microsoft.com/keys/microsoft.asc
+            state: present
+          when: ansible_facts['os_family'] == 'Debian' and install_dotnet == "y"
+
+        - name: Add Microsoft package repository (Ubuntu)
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] https://packages.microsoft.com/ubuntu/{{ ansible_facts['distribution_release'] }}/prod {{ ansible_facts['distribution_release'] }} main"
+            state: present
+            filename: 'microsoft-prod'
+          when: ansible_facts['os_family'] == 'Debian' and install_dotnet == "y"
+
+        - name: Install .NET SDK 9.0 (macOS/Linux)
+          ansible.builtin.shell: |
+            curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0
+          args:
+            creates: "{{ ansible_env.HOME }}/.dotnet"
+          when: install_dotnet == "y" and ansible_facts['os_family'] != 'Windows'
+
+        - block:
+            - name: Install Python (macOS/Linux)
+              ansible.builtin.package:
+                name: python3
+                state: present
+            - name: Install pyenv (macOS/Linux)
+              ansible.builtin.package:
+                name: pyenv
+                state: present
+          when: install_python == "y"
+
+        - name: Install Visual Studio Code (macOS/Linux)
+          ansible.builtin.package:
+            name: code
+            state: present
+          when: install_vscode == "y"
+
+        - name: Install Docker (macOS)
+          ansible.builtin.package:
+            name: docker
+            state: present
+          when: install_docker == "y" and ansible_facts['os_family'] == 'Darwin'
+        - name: Install Docker (Linux)
+          ansible.builtin.shell: |
+            curl -o- https://get.docker.com | bash
+          when: install_docker == "y" and ansible_facts['os_family'] == 'Debian'
+      when: ansible_facts['os_family'] != "Windows"
+
+    # Windows installs grouped together using winget
+    - block:
+        - name: Install Git (Windows)
+          win_shell: winget install --id Git.Git -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\Git\\bin\\git.exe'
+
+        - name: Install GitHub CLI (Windows)
+          win_shell: winget install --id GitHub.cli -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\GitHub CLI\\gh.exe'
+
+        - name: Install Azure CLI (Windows)
+          win_shell: winget install --id Microsoft.AzureCLI -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd'
+
+        - name: Install PowerShell (Windows)
+          win_shell: winget install --id Microsoft.Powershell -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\PowerShell\\7\\pwsh.exe'
+
+        - name: Install Node.js (Windows)
+          win_shell: winget install --id OpenJS.NodeJS.LTS -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\nodejs\\node.exe'
+
+        - name: Install .NET SDK 9.0 (Windows)
+          win_shell: winget install --id Microsoft.DotNet.SDK.90 -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\dotnet\\dotnet.exe'
+          when: install_dotnet == "y"
+
+        - block:
+            - name: Install Python (Windows)
+              win_shell: winget install --id Python.Python.3 -e --accept-package-agreements --accept-source-agreements
+              args:
+                creates: 'C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\Python\\Python*\\python.exe'
+            # pyenv is not natively supported on Windows
+          when: install_python == "y"
+
+        - name: Install Visual Studio Code (Windows)
+          win_shell: winget install --id Microsoft.VisualStudioCode -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\Microsoft VS Code\\Code.exe'
+          when: install_vscode == "y"
+
+        - name: Install Docker Desktop (Windows)
+          win_shell: winget install --id Docker.DockerDesktop -e --accept-package-agreements --accept-source-agreements
+          args:
+            creates: 'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'
+          when: install_docker == "y"
+      when: ansible_facts['os_family'] == "Windows"
+
+    - name: Print completion message
+      debug:
+        msg: "✅ Dev environment setup complete!"

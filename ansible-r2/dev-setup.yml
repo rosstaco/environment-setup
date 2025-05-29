@@ -1,0 +1,251 @@
+---
+- name: Multi-OS Dev Environment Setup
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    # Map package names for each tool by OS family
+    git_package:
+      Darwin: git
+      Debian: git
+      Windows: Git.Git
+    gh_package:
+      Darwin: gh
+      Debian: gh
+      Windows: GitHub.cli
+    azurecli_package:
+      Darwin: azure-cli
+      Debian: azure-cli
+      Windows: Microsoft.AzureCLI
+    powershell_package:
+      Darwin: powershell
+      Debian: powershell
+      Windows: Microsoft.PowerShell
+    python_package:
+      Darwin: python@3.11
+      Debian: python3
+      Windows: Python.Python.3.11
+    pyenv_package:
+      Darwin: pyenv
+      Debian: pyenv
+    vscode_package:
+      Darwin: visual-studio-code
+      Debian: code
+      Windows: Microsoft.VisualStudioCode
+    docker_package:
+      Darwin: docker
+      Debian: docker.io
+      Windows: Docker.DockerDesktop
+    dotnet_package:
+      Darwin: dotnet-sdk@8
+      Debian: dotnet-sdk-8.0
+      Windows: Microsoft.DotNet.SDK.8
+    nodejs_package:
+      Windows: OpenJS.NodeJS.LTS
+  vars_prompt:
+    - name: install_dotnet
+      prompt: "Install .NET SDK (y/n)?"
+      private: no
+      default: "n"
+    - name: install_python
+      prompt: "Install Python & pyenv (y/n)?"
+      private: no
+      default: "n"
+    - name: install_vscode
+      prompt: "Install Visual Studio Code (Win/Mac) (y/n)?"
+      private: no
+      default: "n"
+    - name: install_docker
+      prompt: "Install Docker (y/n)?"
+      private: no
+      default: "n"
+  tasks:
+    - name: Detect OS
+      debug:
+        msg: "Detected OS: {{ ansible_os_family }} / {{ ansible_distribution }}"
+
+    # Install core tools using ansible.builtin.package for macOS and Ubuntu/Debian
+    - name: Install always-on tools (curl, wget) - Unix systems
+      ansible.builtin.package:
+        name: [curl, wget]
+        state: present
+      when: ansible_os_family in ['Darwin', 'Debian']
+
+    - name: Install Git
+      ansible.builtin.package:
+        name: "{{ git_package[ansible_os_family] }}"
+        state: present
+      when: ansible_os_family in git_package
+
+    - name: Install Git (Windows)
+      win_shell: "winget install --id {{ git_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows'
+
+    - name: Install GitHub CLI
+      ansible.builtin.package:
+        name: "{{ gh_package[ansible_os_family] }}"
+        state: present
+      when: ansible_os_family in gh_package
+
+    - name: Install GitHub CLI (Windows)
+      win_shell: "winget install --id {{ gh_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows'
+
+    # Azure CLI (macOS): use Homebrew package
+    - name: Install Azure CLI (macOS)
+      ansible.builtin.package:
+        name: "{{ azurecli_package[ansible_os_family] }}"
+        state: present
+      when: ansible_os_family == 'Darwin'
+
+    # Azure CLI (Ubuntu): use official 1-line install script for latest version
+    - name: Install Azure CLI (Ubuntu)
+      shell: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+      args:
+        executable: /bin/bash
+      when: ansible_os_family == 'Debian'
+      register: az_cli_install
+
+    - name: Check Azure CLI install result (Ubuntu)
+      debug:
+        msg: "Azure CLI install script output: {{ az_cli_install.stdout }}"
+      when: ansible_os_family == 'Debian'
+
+    # Azure CLI (Windows): use winget
+    - name: Install Azure CLI (Windows)
+      win_shell: "winget install --id {{ azurecli_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows'
+
+    - name: Download Microsoft repository package (Ubuntu)
+      ansible.builtin.get_url:
+        url: "https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb"
+        dest: "/tmp/packages-microsoft-prod.deb"
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Microsoft repository package (Ubuntu)
+      ansible.builtin.apt:
+        deb: "/tmp/packages-microsoft-prod.deb"
+      when: ansible_os_family == 'Debian'
+
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install PowerShell
+      ansible.builtin.package:
+        name: "{{ powershell_package[ansible_os_family] }}"
+        state: present
+      when: ansible_os_family in powershell_package
+
+    - name: Install PowerShell (Windows)
+      win_shell: "winget install --id {{ powershell_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows'
+
+    # Optional: .NET SDK
+    - name: Install .NET SDK
+      ansible.builtin.package:
+        name: "{{ dotnet_package[ansible_os_family] }}"
+        state: present
+      when: install_dotnet == 'y' and ansible_os_family in dotnet_package
+
+    - name: Install .NET SDK (Windows)
+      win_shell: "winget install --id {{ dotnet_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
+      when: install_dotnet == 'y' and ansible_os_family == 'Windows'
+
+    # Optional: Python & pyenv
+    - name: Install Python
+      ansible.builtin.package:
+        name: "{{ python_package[ansible_os_family] }}"
+        state: present
+      when: install_python == 'y' and ansible_os_family in python_package
+
+    - name: Install Python (Windows)
+      win_shell: "winget install --id {{ winget_packages.python }} --accept-source-agreements --accept-package-agreements -e"
+      when: install_python == 'y' and ansible_os_family == 'Windows'
+
+    - name: Install pyenv
+      shell: |
+        curl https://pyenv.run | bash
+      args:
+        executable: /bin/bash
+      register: py_env_install
+      when: install_python == 'y' and ansible_os_family in pyenv_package
+
+    # Optional: Visual Studio Code (macOS)
+    - name: Install Visual Studio Code (macOS, Homebrew cask)
+      community.general.homebrew:
+        name: visual-studio-code
+        state: present
+        install_options: 'cask'
+      when: ansible_os_family == 'Darwin' and install_vscode == 'y'
+
+    # Optional: Visual Studio Code (Ubuntu)
+    - name: Install Visual Studio Code (Ubuntu)
+      ansible.builtin.package:
+        name: code
+        state: present
+      when: ansible_os_family == 'Debian' and install_vscode == 'y'
+
+    # Optional: Visual Studio Code (Windows)
+    - name: Install Visual Studio Code (Windows)
+      win_shell: "winget install --id {{ winget_packages.vscode }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows' and install_vscode == 'y'
+
+    # Optional: Docker (macOS)
+    - name: Install Docker (macOS, Homebrew cask)
+      community.general.homebrew:
+        name: docker
+        state: present
+        install_options: 'cask'
+      when: ansible_os_family == 'Darwin' and install_docker == 'y'
+
+    # Optional: Docker (Ubuntu)
+    - name: Install Docker (Ubuntu)
+      ansible.builtin.package:
+        name: docker.io
+        state: present
+      when: ansible_os_family == 'Debian' and install_docker == 'y'
+
+    # Optional: Docker (Windows)
+    - name: Install Docker (Windows)
+      win_shell: "winget install --id {{ winget_packages.docker }} --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows' and install_docker == 'y'
+
+    # NVM and Node.js (macOS/Linux)
+    - name: Install NVM (macOS/Linux)
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        if [ ! -d "$NVM_DIR" ]; then
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        fi
+      args:
+        executable: /bin/bash
+      when: ansible_os_family in ['Darwin', 'Debian']
+
+    - name: Ensure NVM is sourced in shell config (macOS/Linux)
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.zshrc"
+        line: 'export NVM_DIR="$HOME/.nvm"\n[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+        create: yes
+      when: ansible_os_family in ['Darwin', 'Debian']
+
+    - name: Install Node.js LTS via NVM (macOS/Linux)
+      shell: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install --lts
+      args:
+        executable: /bin/bash
+      when: ansible_os_family in ['Darwin', 'Debian']
+
+    # Node.js (Windows) - Install directly via winget since NVM for Windows is different
+    - name: Install Node.js LTS (Windows)
+      win_shell: "winget install --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements -e"
+      when: ansible_os_family == 'Windows'
+
+    # Final message
+    - name: Dev environment setup complete
+      debug:
+        msg: "✅ Dev environment setup complete! Restart your shell (or terminal) to use new tools."
