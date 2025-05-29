@@ -1,0 +1,221 @@
+# Environment Setup Repository .gitignore
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =============================================================================
+# Development Environment Files
+# =============================================================================
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+*.orig
+
+# =============================================================================
+# Ansible Specific
+# =============================================================================
+
+# Ansible vault files (if any are added)
+vault_pass.txt
+.vault_pass
+vault.yml
+secrets.yml
+
+# Ansible retry files
+*.retry
+
+# Ansible collections cache
+collections/
+~/.ansible/
+
+# Dynamic inventory scripts output
+inventory.ini
+hosts.ini
+
+# =============================================================================
+# Shell Script Related
+# =============================================================================
+
+# Downloaded install scripts (if cached locally)
+install-*.sh.downloaded
+*.install.sh.backup
+
+# Shell history
+.bash_history
+.zsh_history
+
+# =============================================================================
+# Package Manager Files
+# =============================================================================
+
+# Homebrew
+Brewfile.lock.json
+
+# npm (if any Node.js projects are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Python (if any Python projects are added)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# .NET (if any .NET projects are added)
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+
+# =============================================================================
+# Security and Sensitive Files
+# =============================================================================
+
+# SSH keys
+id_rsa
+id_rsa.pub
+*.pem
+*.key
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Certificates
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# =============================================================================
+# Reports and Logs
+# =============================================================================
+
+# Keep REPORTS directory but ignore temporary report files
+REPORTS/*.tmp
+REPORTS/.temp*
+REPORTS/draft_*
+
+# Installation logs
+install.log
+setup.log
+ansible.log
+
+# Error logs
+error.log
+debug.log
+
+# =============================================================================
+# Test and Development
+# =============================================================================
+
+# Test environments
+test-env/
+sandbox/
+.test/
+
+# Backup directories
+backup/
+.backup/
+old/
+
+# =============================================================================
+# Documentation Build Files
+# =============================================================================
+
+# Generated documentation
+docs/_build/
+docs/.doctrees/
+site/
+
+# =============================================================================
+# Archive Files
+# =============================================================================
+
+# Compressed files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+*.bz2
+*.xz
+
+# =============================================================================
+# Custom Project Specific
+# =============================================================================
+
+# Downloaded tools (if scripts cache downloads)
+downloads/
+.downloads/
+cache/
+.cache/
+
+# User-specific configuration overrides
+config.local.*
+settings.local.*
+*-local.*
+
+# Ansible collections downloaded during development
+ansible_collections/
+
+# Custom inventory files for testing
+test-inventory.yml
+local-inventory.yml
+dev-inventory.yml
