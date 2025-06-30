@@ -91,6 +91,9 @@ brew upgrade
 # Install Git and GitHub CLI
 brew install git gh
 
+#Install Git Credential Manager
+brew install --cask git-credential-manager
+
 # Install Azure CLI
 brew install azure-cli
 
