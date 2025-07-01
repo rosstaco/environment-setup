@@ -91,6 +91,13 @@
       win_shell: "winget install --id {{ gh_package[ansible_os_family] }} --accept-source-agreements --accept-package-agreements -e"
       when: ansible_os_family == 'Windows'
 
+    - name: Install Git Credential Manager (macOS, Homebrew cask)
+      community.general.homebrew:
+        name: git-credential-manager
+        state: present
+        install_options: 'cask'
+      when: ansible_os_family == 'Darwin' 
+
     # Azure CLI (macOS): use Homebrew package
     - name: Install Azure CLI (macOS)
       ansible.builtin.package:
